@@ -36,6 +36,7 @@ npm install
 npm start
 
 # Step 4. Install & Run Frontend (React + Vite)
+cd AnimeLens
 npm install
 npm run dev
 
