@@ -36,6 +36,8 @@ app.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
+  // Logging nama file dan ukuran file
+  console.log(`File uploaded: ${req.file.originalname}, Saved as: ${req.file.filename}, Size: ${req.file.size} bytes`);
   res.json({ message: 'File uploaded successfully', filename: req.file.filename });
 });
 
@@ -50,6 +52,8 @@ app.post('/detect', upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded for detection' });
   }
+  // Logging nama file dan ukuran file
+  console.log(`File uploaded for detection: ${req.file.originalname}, Saved as: ${req.file.filename}, Size: ${req.file.size} bytes`);
   try {
     const mlServiceUrl = 'http://127.0.0.1:8000/predict';
     const imagePath = path.join(uploadDir, req.file.filename);
