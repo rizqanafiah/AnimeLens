@@ -1,19 +1,23 @@
-import os
-import numpy as np
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from PIL import Image
 import tensorflow as tf
-from tensorflow import keras
+import numpy as np
+from PIL import Image
 import io
+import json
+import os
+import logging
 
-app = FastAPI(
-    title="AnimeLens API",
-    description="API for anime movie image classification",
-    version="1.0.0"
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
 
-# Add CORS middleware with more specific configuration
+app = FastAPI(title="AnimeLens API", description="API for anime movie prediction from images")
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,76 +27,134 @@ app.add_middleware(
 )
 
 # Load the model
-MODEL_PATH = "model/animelens_model.h5"
-model = keras.models.load_model(MODEL_PATH)
+MODEL_PATH = os.path.join("model", "saved_model")
+logger.info(f"Attempting to load model from: {os.path.abspath(MODEL_PATH)}")
+logger.info(f"TensorFlow version: {tf.__version__}")
 
-# Print model information
-print("Model output shape:", model.output_shape)
-print("Number of classes in model:", model.output_shape[-1])
+# Enable TensorFlow compatibility mode
+tf.keras.backend.set_floatx('float32')
+tf.keras.backend.set_image_data_format('channels_last')
 
-# Define class names based on the anime movies
-CLASS_NAMES = [
-    "Fireworks, Should We See It from the Side or the Bottom",
-    "Hello World",
-    "The Garden of Words",
-    "Your Name",
-    "Summer Ghost",
-    "Grave of the Fireflies",
-    "Josee, the Tiger and the Fish",
-    "A Whisker Away",
-    "A Silent Voice",
-    "The Anthem of the Heart"
-]
+try:
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Model directory not found at {MODEL_PATH}")
+    
+    logger.info("Model directory exists, attempting to load...")
+    
+    # Load the model from saved_model directory
+    model = tf.saved_model.load(MODEL_PATH)
+    logger.info("Model loaded successfully")
+    
+    # Get the prediction function
+    predict_fn = model.signatures['serving_default']
+    logger.info("Prediction function loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading model: {str(e)}")
+    model = None
+    predict_fn = None
 
-# Verify number of classes matches model output
-if len(CLASS_NAMES) != model.output_shape[-1]:
-    raise ValueError(f"Number of classes ({len(CLASS_NAMES)}) does not match model output shape ({model.output_shape[-1]})")
+# Load class names
+try:
+    with open("model/class_names.json", "r") as f:
+        class_names = json.load(f)
+    logger.info(f"Loaded {len(class_names)} class names")
+except Exception as e:
+    logger.warning(f"Error loading class names: {str(e)}")
+    # Fallback class names if file doesn't exist
+    class_names = [
+        "Hello World",
+        "Josee, the Tiger and the Fish",
+        "Natsu e no Tunnel Sayonara no Deguchi",
+        "The Garden of Words",
+        "Your Name"
+    ]
+    logger.info("Using fallback class names")
 
-def preprocess_image(img):
-    # Resize image to match model's expected sizing
-    img = img.resize((224, 224))
-    # Convert to array and preprocess
-    img_array = np.array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array / 255.0  # Normalize
-    return img_array
+def preprocess_image(image_bytes):
+    """Preprocess the image for model prediction"""
+    try:
+        # Convert bytes to PIL Image
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Convert to RGB if image is in different mode
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Resize image to match model input size (224x224)
+        image = image.resize((224, 224))
+        
+        # Convert to numpy array
+        image_array = np.array(image)
+        
+        # Normalize pixel values
+        image_array = image_array.astype('float32') / 255.0
+        
+        # Add batch dimension
+        image_array = np.expand_dims(image_array, axis=0)
+        
+        return image_array
+    except Exception as e:
+        logger.error(f"Error preprocessing image: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error processing image: {str(e)}")
 
 @app.get("/")
 async def root():
+    """Root endpoint"""
     return {
         "message": "Welcome to AnimeLens API",
-        "available_classes": CLASS_NAMES
+        "endpoints": {
+            "/predict": "POST - Upload an image to predict anime movie"
+        },
+        "status": {
+            "model_loaded": model is not None,
+            "num_classes": len(class_names)
+        }
     }
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
+    """Predict anime movie from uploaded image"""
+    logger.info(f"Received prediction request for file: {file.filename}")
+    
+    if model is None or predict_fn is None:
+        logger.error("Model not loaded")
+        raise HTTPException(status_code=500, detail="Model not loaded")
+    
     try:
-        # Read and validate image
         contents = await file.read()
-        img = Image.open(io.BytesIO(contents))
+        logger.info(f"Read file of size: {len(contents)} bytes")
         
-        # Preprocess image
-        processed_img = preprocess_image(img)
+        processed_image = preprocess_image(contents)
+        logger.info(f"Processed image shape: {processed_image.shape}")
+        
+        # Convert to tensor
+        input_tensor = tf.convert_to_tensor(processed_image)
         
         # Make prediction
-        predictions = model.predict(processed_img)
+        predictions = predict_fn(input_tensor)
         
-        # Get top 3 predictions
-        top_3_idx = np.argsort(predictions[0])[-3:][::-1]
+        # Get the output tensor
+        output_key = list(predictions.keys())[0]
+        predictions_array = predictions[output_key].numpy()
+        
+        logger.info(f"Raw predictions shape: {predictions_array.shape}")
+        
+        # Get top 5 predictions
+        top_indices = np.argsort(predictions_array[0])[-5:][::-1]
         results = []
-        
-        for idx in top_3_idx:
+        for idx in top_indices:
             results.append({
-                "movie": CLASS_NAMES[idx],
-                "confidence": float(predictions[0][idx])
+                "movie": class_names[idx],
+                "confidence": float(predictions_array[0][idx])
             })
         
+        logger.info(f"Top prediction: {results[0]}")
         return {
             "success": True,
             "predictions": results
         }
-        
     except Exception as e:
+        logger.error(f"Error during prediction: {str(e)}")
         return {
             "success": False,
             "error": str(e)
@@ -100,4 +162,5 @@ async def predict(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    logger.info("Starting AnimeLens API server...")
+    uvicorn.run(app, host="127.0.0.1", port=8000)
