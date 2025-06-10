@@ -51,7 +51,7 @@ app.post('/detect', upload.single('image'), async (req, res) => {
     return res.status(400).json({ error: 'No file uploaded for detection' });
   }
   try {
-    const mlServiceUrl = 'http://localhost:8000/predict';
+    const mlServiceUrl = 'http://127.0.0.1:8000/predict';
     const imagePath = path.join(uploadDir, req.file.filename);
 
     const formData = new FormData();
