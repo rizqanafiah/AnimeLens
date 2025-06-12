@@ -2,7 +2,7 @@ import requests
 import json
 
 # API base URL
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://127.0.0.1:8000"
 
 def test_root_endpoint():
     """Test the root endpoint"""
@@ -17,7 +17,7 @@ def test_predict_endpoint(image_path):
     
     # Prepare the image file
     with open(image_path, 'rb') as img_file:
-        files = {'file': (image_path, img_file, 'image/jpeg')}
+        files = {'file': (image_path, img_file, 'image/png')}
         
         # Make the request
         response = requests.post(f"{BASE_URL}/predict", files=files)
@@ -30,4 +30,4 @@ if __name__ == "__main__":
     test_root_endpoint()
     
     # Test predict endpoint with test image
-    test_predict_endpoint("test_image.jpeg") 
+    test_predict_endpoint("test3.png") 
