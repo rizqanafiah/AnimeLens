@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 
 // Setup CORS to allow requests from frontend
 app.use(cors({
-  origin: '*', // Adjust this to frontend URL in production
+  origin: '*', // Adjust this to your frontend URL in production
 }));
 
 // Create uploads folder if not exists
@@ -36,8 +36,6 @@ app.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
-  // Logging nama file dan ukuran file
-  console.log(`File uploaded: ${req.file.originalname}, Saved as: ${req.file.filename}, Size: ${req.file.size} bytes`);
   res.json({ message: 'File uploaded successfully', filename: req.file.filename });
 });
 
@@ -52,8 +50,7 @@ app.post('/detect', upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded for detection' });
   }
-  // Logging nama file dan ukuran file
-  console.log(`File uploaded for detection: ${req.file.originalname}, Saved as: ${req.file.filename}, Size: ${req.file.size} bytes`);
+
   try {
     const mlServiceUrl = 'http://127.0.0.1:8000/predict';
     const imagePath = path.join(uploadDir, req.file.filename);
@@ -71,8 +68,10 @@ app.post('/detect', upload.single('image'), async (req, res) => {
       maxBodyLength: Infinity,
     });
 
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Prediction failed');
+    console.log('ML Service Response:', response.data); // Debug log
+
+    if (!response.data || !response.data.predictions) {
+      throw new Error('Invalid response format from ML service');
     }
 
     // Format the response to include top predictions
@@ -86,12 +85,23 @@ app.post('/detect', upload.single('image'), async (req, res) => {
 
     res.json({ success: true, detectionResult });
   } catch (error) {
-    console.error('Error in detection:', error);
+    console.error('Error in detection:', error.message);
+    console.error('Error details:', error.response ? error.response.data : 'No response data');
     res.status(500).json({ 
       success: false,
       error: 'Error communicating with ML service', 
       details: error.message 
     });
+  } finally {
+    // Clean up the uploaded file
+    try {
+      const filePath = path.join(uploadDir, req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file:', cleanupError);
+    }
   }
 });
 
