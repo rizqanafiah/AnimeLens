@@ -4,18 +4,13 @@ import { ArrowLeft, ExternalLink, Camera } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
-// Mapping judul model ke judul pencarian Jikan (jika perlu)
+// Mapping judul model ke judul pencarian Jikan 
 const titleMap: Record<string, string> = {
-  'Fireworks, Should We See It from the Side or the Bottom': 'Uchiage Hanabi, Shita kara Miru ka? Yoko kara Miru ka?',
   'Hello World': 'Hello World',
   'The Garden of Words': 'Kotonoha no Niwa',
   'Your Name': 'Kimi no Na wa.',
-  'Summer Ghost': 'Summer Ghost',
-  'Grave of the Fireflies': 'Hotaru no Haka',
-  'Josee, the Tiger and the Fish': 'Josee to Tora to Sakana-tachi',
-  'A Whisker Away': 'Nakitai Watashi wa Neko wo Kaburu',
-  'A Silent Voice': 'Koe no Katachi',
-  'The Anthem of the Heart': 'Kokoro ga Sakebitagatterunda.'
+  'Natsu e no Tunnel Sayonara no Deguchi': 'The Tunnel to Summer, the Exit of Goodbyes',
+  'Josee, the Tiger and the Fish': 'Josee to Tora to Sakana-tachi.'
 };
 
 const ResultPage = () => {
