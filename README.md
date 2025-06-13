@@ -23,23 +23,16 @@ Make sure you have Node.js & npm installed - [install with nvm](https://github.c
 ```sh
 # Step 1: Clone the repository
 git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory
 cd AnimeLens
 
-# Step 2: Install & Run ML Microservice (FastAPI)
-cd microservice
-pip install -r requirements.txt
-python main.py
-
-# Step 3: Install & Run Backend (Express.js)
-cd ../backend
+# Step 3: Install dependencies
 npm install
-npm start
 
-# Step 4. Install & Run Frontend (React + Vite)
-cd AnimeLens
-npm install
+# Step 4: Start the development server
 npm run dev
-
+```
 
 The application will be available at `http://localhost:8080`
 
@@ -81,8 +74,6 @@ This project is built with modern web technologies:
 
 ```
 AnimeLens/
-├── backend/         # Express.js backend API
-├── microservice/    # FastAPI + ML model
 ├── public/                 # Static assets
 ├── src/
 │   ├── components/        # Reusable UI components
@@ -106,9 +97,6 @@ AnimeLens/
 ├── vite.config.ts        # Vite configuration
 └── tsconfig.json         # TypeScript configuration
 ```
-
-## External API
-- Anime details are fetched from [Jikan API (MyAnimeList)](https://docs.api.jikan.moe/)
 
 ## Deployment
 
